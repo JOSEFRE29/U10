@@ -1,0 +1,103 @@
+Instalar Biblioteca: https://github.com/dav1d-lu1sVs/BibliotecaPantalla 
+Link imagen: https://www.iloveimg.com/resize-image/resize-png#resize-options,pixels 
+Redimensionar la imagen a 124*64 pixele
+Cargar la imagen en la web Image to Adafruit OLED Bitmap
+Converter: http://www.majer.ch/lcd/adf_bitmap.php 
+Copiar el código hexadecimal y remplazar en la función del código en Arduino.
+
+
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define ANCHO 128
+#define ALTO  64
+#define OLED_RESET -1
+
+Adafruit_SSD1306 display(ANCHO, ALTO, &Wire, OLED_RESET);
+
+// ---- Logo simple 16x16 en bitmap (puedes cambiarlo luego si quieres) ----
+const unsigned char PROGMEM logoBitmap[] = {
+  0b00000000, 0b00000000,
+  0b00000011, 0b11000000,
+  0b00001111, 0b11110000,
+  0b00011100, 0b00111000,
+  0b00110000, 0b00001100,
+  0b01100011, 0b11000110,
+  0b01100111, 0b11100110,
+  0b11001100, 0b00110011,
+  0b11001100, 0b00110011,
+  0b01100111, 0b11100110,
+  0b01100011, 0b11000110,
+  0b00110000, 0b00001100,
+  0b00011100, 0b00111000,
+  0b00001111, 0b11110000,
+  0b00000011, 0b11000000,
+  0b00000000, 0b00000000
+};
+
+unsigned long lastUpdate = 0;
+
+void setup() {
+  // Inicializar OLED
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Dirección I2C típica 0x3C
+    for (;;); // Si falla, queda bloqueado
+  }
+
+  display.clearDisplay();
+  display.setTextColor(SSD1306_WHITE);
+
+  // Pantalla de bienvenida
+  display.setTextSize(2);
+  display.setCursor(10, 10);
+  display.println("OLED");
+  display.setCursor(10, 30);
+  display.println("Ej. 8");
+  display.display();
+  delay(2000);
+}
+
+void loop() {
+  unsigned long ahora = millis();
+
+  // Actualizamos la pantalla cada 1000 ms (1 segundo)
+  if (ahora - lastUpdate >= 1000) {
+    lastUpdate = ahora;
+
+    // Calculamos un "reloj" sencillo desde que se encendió el Arduino
+    unsigned long segundosTotales = ahora / 1000;
+    unsigned int minutos = segundosTotales / 60;
+    unsigned int segundos = segundosTotales % 60;
+
+    display.clearDisplay();
+
+    // --- Logo ---
+    display.drawBitmap(0, 0, logoBitmap, 16, 16, SSD1306_WHITE);
+
+    // --- Nombre ---
+    display.setTextSize(1);
+    display.setCursor(22, 0);
+    display.println("Tatiana Fonseca"); // <-- Cambia a tu nombre
+
+    // --- Fecha (fija, puedes poner la actual) ---
+    display.setCursor(22, 12);
+    display.println("Fecha: 02/12/2025");
+
+    // --- Texto extra / título ---
+    display.setTextSize(1);
+    display.setCursor(0, 30);
+    display.println("Proyecto OLED 128x64");
+
+    // --- Mejora: datos dinamicos (reloj) ---
+    display.setTextSize(2);
+    display.setCursor(0, 45);
+    display.print("T=");
+    if (minutos < 10) display.print('0');
+    display.print(minutos);
+    display.print(":");
+    if (segundos < 10) display.print('0');
+    display.print(segundos);
+
+    display.display();
+  }
+}

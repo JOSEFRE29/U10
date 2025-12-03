@@ -1,0 +1,25 @@
+#define touch 20
+int led = 9;
+
+
+byte estadotouch = 0;
+
+
+void setup() {
+   pinMode(led, OUTPUT);
+   pinMode(touch, INPUT);
+
+
+}
+
+
+void loop() {
+  estadotouch = digitalRead(touch);
+  if(estadotouch == 1){
+    digitalWrite(led,HIGH);
+  }
+  else
+  {
+    digitalWrite(led,LOW);
+  }
+}

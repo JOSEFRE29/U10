@@ -1,0 +1,160 @@
+
+
+-------------------------CODIGO ARDUINO----------------------
+
+Instalar Biblioteca: https://github.com/dav1d-lu1sVs/BibliotecaPantalla 
+
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+#define ANCHO 128
+#define ALTO 64
+#define OLED_RESET -1
+
+Adafruit_SSD1306 display(ANCHO, ALTO, &Wire, OLED_RESET);
+
+#define LED_VERDE 8
+#define LED_ROJO 9
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(LED_VERDE, OUTPUT);
+  pinMode(LED_ROJO, OUTPUT);
+
+  // Inicializar OLED
+  if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) {
+    for (;;);
+  }
+
+  display.clearDisplay();
+  display.setTextSize(2);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 0);
+  display.println("Sistema");
+  display.println("Facial");
+  display.display();
+  delay(2000);
+
+  mostrarEsperando();
+}
+
+void loop() {
+  if (Serial.available() > 0) {
+    char dato = Serial.read();
+
+    if (dato == '1') {
+      // ROSTRO DETECTADO
+      digitalWrite(LED_VERDE, HIGH);
+      digitalWrite(LED_ROJO, LOW);
+
+      display.clearDisplay();
+      display.setTextSize(2);
+      display.setCursor(0, 0);
+      display.println("Acceso");
+      display.println("correcto");
+      display.display();
+    }
+
+    else if (dato == '0') {
+      // SIN ROSTRO
+      digitalWrite(LED_VERDE, LOW);
+      digitalWrite(LED_ROJO, HIGH);
+
+      display.clearDisplay();
+      display.setTextSize(2);
+      display.setCursor(0, 0);
+      display.println("Acceso");
+      display.println("denegado");
+      display.display();
+    }
+  }
+}
+
+void mostrarEsperando() {
+  digitalWrite(LED_VERDE, LOW);
+  digitalWrite(LED_ROJO, LOW);
+
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setCursor(0, 0);
+  display.println("Esperando datos");
+  display.println("desde Python...");
+  display.display();
+}
+
+
+-----------------------------CODDIGO Python---------------------------------
+import cv2
+import serial
+import time
+import os
+
+# --- CONFIG SERIAL ---
+# Cambia el puerto según tu PC: COM3 / COM4 en Windows — /dev/ttyUSB0 en Linux
+arduino = serial.Serial('COM4', 9600)
+time.sleep(2)
+
+# --- CARGAR MODELO HAAR ---
+face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+
+def procesar_imagen(ruta_imagen: str):
+    if not os.path.exists(ruta_imagen):
+        print(f"ERROR: La imagen '{ruta_imagen}' no existe.")
+        return
+
+    img = cv2.imread(ruta_imagen)
+    if img is None:
+        print("ERROR: No se pudo cargar la imagen.")
+        return
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # --- DETECCIÓN ---
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+    # --- RESULTADO ---
+    if len(faces) > 0:
+        print(f"[{ruta_imagen}] → ROSTRO DETECTADO → Acceso correcto")
+
+        # ENVIAR A ARDUINO EL CÓDIGO 1 ("Acceso correcto")
+        arduino.write(b'1')
+
+        mensaje = "Acceso correcto"
+        color = (0, 255, 0)
+    else:
+        print(f"[{ruta_imagen}] → SIN ROSTRO → Acceso denegado")
+
+        # ENVIAR A ARDUINO EL CÓDIGO 0 ("Acceso denegado")
+        arduino.write(b'0')
+
+        mensaje = "Acceso denegado"
+        color = (0, 0, 255)
+
+    # Dibuja solo si hay caras
+    for (x, y, w, h) in faces:
+        cv2.rectangle(img, (x, y), (x+w, y+h), color, 2)
+
+    cv2.putText(img, mensaje, (10, 30),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, color, 2)
+
+    # --- MOSTRAR RESULTADO ---
+    cv2.imshow("Resultado", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+print("=== SISTEMA DE RECONOCIMIENTO ===")
+print("Coloca imágenes en la misma carpeta. Ej: rostro1.jpg")
+print("Escribe 'salir' para terminar.\n")
+
+while True:
+    archivo = input("Imagen a procesar: ").strip()
+
+    if archivo.lower() == "salir":
+        print("Finalizando...")
+        break
+
+    procesar_imagen(archivo)
+
+arduino.close()
